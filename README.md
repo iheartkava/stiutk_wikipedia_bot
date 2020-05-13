@@ -1,20 +1,25 @@
-## TMNT Wikipedia Bot
+## STIUTK Wikipedia Bot
 
-Every 60 minutes this Python script posts to https://twitter.com/wiki_tmnt and https://botsin.space/@tmnt
+Similar to https://github.com/catleeball/tmnt_wikipedia_bot but search for
+"(Now You're Just) Somebody That I Used To Know" instead of "Teeange
+Mutant Ninja Turtles".
 
 ### Why
 
-For fun! Inspired by https://xkcd.com/1412/
+For fun! This idea came to me, falling asleep at 7am, as a vision
+of a Twitter account that doesn't exist, but should. Of course
+I needed to  make it a reality.
+Inspired by https://github.com/catleeball/tmnt_wikipedia_bot
+which in turn was inspired by https://xkcd.com/1412/
 
 ### How
 
 When it runs, it:
-- Pulls 10 random Wikipedia article titles
-- Checks if they are in trochaic tetrameter
+- Pulls 25 random Wikipedia article titles
+- Checks if they have the same stress pattern as Gotye's *Somebody That*
+  *I Used To Know*
   - If not, pull 10 more articles ad infinitum until a match is found
-- Create a faux-TMNT logo containing the wiki title
-  - I'm using the logic at http://glench.com/tmnt to do this
-- Post the title and generated logo to @wiki_tmnt on Twitter
+- Create fake subtitles on Gotye's music video
 
 ### Environment
 
@@ -22,40 +27,27 @@ This script requires the following:
 
 - Python >= 3.7
   - Earlier may work, only tested on 3.7
-- Chrome >= 57
 - Via PyPi:
   - pronouncing
   - num2words
   - PIL
 
-For @wiki_tmnt it runs on a cron job on my local machine.
-
 ### Configuration
 
-I haven't defined a config file format yet, it's in the TODO list below. Common config knobs are currently mostly in `lib/constants.py`.
+Configuration is entirely `lib/constants.py`.
 
 ### Caveats
 
-I'm not developing this for anyone but myself, so you may see some anti-patterns like hardcoded paths specific to my environment, and general lack of configurability outside editing the source.
-
-Given this runs once per hour, I'm not very concerned about performance. I often choose slow, but readable and easy-to-implement solutions.
+Performance could be improved, but it doesn't need to be
+a blazing fast optimized program. Most if it will be spent
+waiting to get more article titles, anyway...
 
 ### TODO
 
-TODO:
-  - More docstrings
-  - README
-  - CLI arguments
-  - use real file format for keys
-  - refactor key fetching to be done once
-  - Integration tests
-  - more unit tests
-  - actually enable option to run doctests
-  - Run glench.com/tmnt locally
+  - Find an effective pattern, I get very few matches currently...
+  - Improved configuration
+  - Use multiple images instead of one
 
 Super bonus points:
   - CI
-  - Mastodon
-  - zipapp release
-  - archive posts locally
   - cache of titles : stresses

@@ -1,68 +1,82 @@
-import pronouncing
-import urllib
-import re
-
 from lib.constants import (
     BANNED_WORDS,
     BANNED_PHRASES,
     CHARS_ONLY,
     PRONUNCIATION_OVERRIDES,
-    TMNT_STRESSES,
+    STIUTK_STRESSES,
+    STIUTK_STRESSES_AGAIN
 )
 from num2words import num2words as n2w
+from urllib.parse import quote_plus
+from typing import Tuple
+from sys import stdout
 
+import pronouncing
+import urllib
+import re
 
-def isTMNT(title: str):
-    """Checks if a Wikipedia page title has the same stress pattern as TMNT.
-
-    >>> isTMNT('Teenage Mutant Ninja Turtles')
+def is_stiutk(title: str) -> Tuple[bool, int]:
+    """Checks if a Wikipedia page title has the same stress pattern as STIUTK
+    >>> is_stiutk('Somebody That I Used To Know')
     True
 
-    >>> isTMNT('Single Payer Health Insurance')
+    >>> is_stiutk("Now You're Just Somebody That I Used To Know")
     True
 
-    >>> isTMNT('Romeo, Romeo, wherefore art thou, Romeo?')
+    >>> is_stiutk('Romeo, Romeo, wherefore art thou, Romeo?')
     False
     """
-    if containsBanned(title):
-        return False
+    if contains_banned(title):
+        return (False, 0)
 
-    title = cleanStr(title)
-    title_stresses = getTitleStresses(title)
+    title = clean_str(title)
+    title_stresses = get_title_stresses(title)
 
-    if (not title_stresses) or (len(title_stresses) != 8):
-        return False
+    """Remember! We can match two different patterns. Either the shorter
+    "Somebody That I Used To Know", but the longer "Now You're Just Somebody
+    That I Used To Know" is valid as well. That's why this part is a little
+    bit weird...
+    It returns a Touple (bool, int) where bool indicates if it's a valid stiutk
+    title, and int indicates if it's the long or short pattern.
+    """
+    if (not title_stresses) or ((len(title_stresses) != 8) and
+                                (len(title_stresses) != 11)):
+        return (False, 0)
 
-    return True if TMNT_STRESSES.match(title_stresses) else False
+    if STIUTK_STRESSES.match(title_stresses):
+        return (True, 1)
+    elif STIUTK_STRESSES_AGAIN.match(title_stresses):
+        return (True, 2)
+    else:
+        return (False, 0)
 
-
-def containsBanned(title: str):
+def contains_banned(title: str) -> bool:
     """Return True if banned words or phrases in string.
 
     This implementation is slow, but is was fast to write and I don't care about
     speed for this script.
-    """
+    """ 
 
-    def _containsBannedWord(title: str):
+    def _contains_banned_word(title: str):
         for word in title.split():
             word = CHARS_ONLY.sub("", word.lower())
             if word in BANNED_WORDS:
                 return True
         return False
 
-    def _containsBannedPhrase(title: str):
+    def _contains_banned_phrase(title: str):
         for phrase in BANNED_PHRASES:
             if phrase in title.lower():
                 return True
         return False
 
-    return _containsBannedWord(title) or _containsBannedPhrase(title)
+    return _contains_banned_word(title) or _contains_banned_phrase(title)
 
 
-def getTitleStresses(title: str):
+def get_title_stresses(title: str) -> str:
     """Takes a wikipedia title and gets the combined stresses of all words.
 
-    >>> getTitleStresses('Teenage Mutant Ninja Turtles')
+    >>> get_title_stresses('Teenage Mutant Ninja Turtles')
     '12101010'
 
     Args:
@@ -73,21 +87,23 @@ def getTitleStresses(title: str):
     title_words = title.split()
     title_stresses = ""
     while title_words:
-        if len(title_stresses) > 8:
-            return None
+        if len(title_stresses) > 11:
+           return None
+
         word = title_words.pop(0)
-        word_stresses = getWordStresses(word)
+        word_stresses = get_word_stresses(word)
+
         # If word was a long number, it may have been parsed into several words.
         if isinstance(word_stresses, list):
             title_words = word_stresses + title_words
         else:
-            title_stresses += getWordStresses(word)
+            title_stresses += get_word_stresses(word)
 
     return title_stresses
 
 
-def getWordStresses(word: str):
-    word = numbersToWords(word)
+def get_word_stresses(word: str) -> str:
+    word = numbers_to_words(word)
     if " " in word:
         return word.split()
 
@@ -101,10 +117,11 @@ def getWordStresses(word: str):
     except IndexError:
         # Hacky way of discarding candidate title
         return "1111111111"
+
     return stresses
 
 
-def numbersToWords(word):
+def numbers_to_words(word) -> str:
     ordinal_number_endings = ("nd", "rd", "st", "th")
     if word.isdigit():
         if len(word) == 4:
@@ -118,6 +135,7 @@ def numbersToWords(word):
                 word = n2w(word)
             except Exception:
                 # Hacky way of discarding candidate title
+
                 return "1111111111"
     if word[:-2].isdigit() and word[-2:] in ordinal_number_endings:
         word = word[-2:]
@@ -130,18 +148,18 @@ def numbersToWords(word):
     return word
 
 
-def cleanStr(s: str):
+def clean_str(s: str) -> str:
     """Remove characters that the pronouncing dictionary doesn't like.
 
     This isn't very efficient, but it's readable at least. :-)
 
-    >>> cleanStr('fooBar123')
+    >>> clean_str('fooBar123')
     'fooBar123'
 
-    >>> cleanStr('Hello ([world])')
+    >>> clean_str('Hello ([world])')
     'Hello world'
 
-    >>> cleanStr('{hello-world}')
+    >>> clean_str('{hello-world}')
     'hello world'
 
     Args:
@@ -161,49 +179,7 @@ def cleanStr(s: str):
     return s
 
 
-def getWikiUrl(title: str):
+def get_wiki_url(title: str) -> str:
     title = title.replace(" ", "_")
-    title = urllib.parse.quote_plus(title)
+    title = quote_plus(title)
     return "https://en.wikipedia.org/wiki/" + title
-
-
-def addPadding(title: str):
-    """If a title has 2 or 3 words, add extra spaces.
-
-    The logo generator only makes the 4th word in turtle font. Adding spaces
-    is a workaround to push the last word to the 4th word index, according to
-    logo generator logic.
-
-    Note that hyphenated words count separately by the logo generater.
-    I.e. "noise-reduction" is two words.
-
-    Also note if there is somehow an 8-syllable word in trochaic tetrameter,
-    then we simply return it.
-
-    >>> addPadding('Microsoft Transaction Server')
-    'Microsoft  Transaction Server'
-
-    >>> addPadding('Two Words')
-    '  Two  Words'
-
-    >>> addPadding('Teenage Mutant Ninja Turtles')
-    'Teenage Mutant Ninja Turtles'
-
-    Args:
-        title: String, a wikipedia title in-tact
-    Returns
-        String, the title now with extra spaces
-    """
-    original_title = title
-    # TODO: Make a sub-function for dealing with hyphens without replacing them.
-    title = title.replace("-", " ")
-    title_list = title.split()
-
-    if len(title_list) > 3:
-        return original_title
-    if len(title_list) == 3:
-        return title_list[0] + "  " + title_list[1] + " " + title_list[2]
-    if len(title_list) == 2:
-        return "  " + title_list[0] + "  " + title_list[1]
-    if len(title_list) < 2:
-        return original_title
