@@ -1,6 +1,7 @@
 from lib.constants import KEY_PATH
+from lib.words import get_wiki_url
 from collections import namedtuple
-from typing import Tuple
+from typing import Tuple, List
 
 import tweepy
 import sys
@@ -13,6 +14,10 @@ TwitterAuth = namedtuple(
 
 #def get_twitter_credentials(keyfile=KEY_PATH):
 def get_twitter_credentials():
+    """
+    Get twitter credentials from keyfile.
+
+    """
     return True
     '''   try:
         with open(keyfile, "r") as f:
@@ -33,16 +38,30 @@ def get_twitter_credentials():
 
 
 #def send_tweet(tweet_text: str, image_path=""):
-def send_tweet(tweet_stuffs: Tuple[str, int]):
-    print(tweet_stuffs[0])
-    print(tweet_stuffs[1])
-    '''"""Post some text, and optionally an image to twitter.
+def send_tweet(tweet_stuffs: List, image_path=""):
+    """
+    Post text and optionally an image to twitter.
 
-    Args:
-        tweet_stuffs: Tuple[str, int] String title and Int matched meter type.
-        image_path: String, path to image on disk to be posted to twitter
+    Parameters:
+      tweet_stuffs (List): Our monstrosity of a data type containing the title
+      of the wiki page and many many more details........ God this sucks
+
+      image_path (str): Optionally the path to the image to be uploaded along
+      with the tweet.
+
     Returns:
-        tweepy.status object, contains response from twitter request
+      tweepy.status object, contains response from twitter request.
+    """
+    msg = tweet_stuffs[0]
+    if tweet_stuffs[1][2] == True:
+        msg = f"{tweet_stuffs[1][3]} {msg}"
+
+    print("-------------------")
+    print(f"{msg}\n{tweet_stuffs[1][4]}\n{get_wiki_url(tweet_stuffs[0])}")
+    print(f"{image_path}")
+    print("-------------------")
+
+    return True
     """
     TWITTER = get_twitter_credentials()
     auth = tweepy.OAuthHandler(TWITTER.consumer_key, TWITTER.consumer_secret)
@@ -55,4 +74,5 @@ def send_tweet(tweet_stuffs: Tuple[str, int]):
     else:
         return api.update_status(tweet_text)
 
-    return api.update_status(tweet_text)'''
+    return api.update_status(tweet_text)
+    """

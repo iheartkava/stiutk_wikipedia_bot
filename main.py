@@ -1,96 +1,144 @@
 #!/usr/bin/env python3
-from lib.constants import BACKOFF, MAX_ATTEMPTS, MAX_STATUS_LEN, TIMEOUT_BACKOFF
-from typing import Tuple
+from lib.constants import (
+	FETCH,
+	BACKOFF,
+	MAX_ATTEMPTS,
+	MAX_STATUS_LEN,
+	TIMEOUT_BACKOFF
+)
+
+from typing import Tuple, List
 from lib import twitter
 from lib import images
 from lib import words
 
 import wikipedia
+import random
 import time
 import sys
 import os
+import re
 
 def main():
-    title = search_for_stiutk(MAX_ATTEMPTS, BACKOFF)
-    img = images.make_subs(title)
-    status_text = "\n".join((title[0], words.get_wiki_url(title[0])))
+	while True:
+		loop()
+		print("\t -- We Sleeping Now --")
+		time.sleep(10)
 
-    if len(status_text) > MAX_STATUS_LEN:
-        status_text = title[0]
+def loop():
+	title = search_for_stiutk()
+	if not title:
+		print(f"\nNo matches found.")
+		return False
 
-    title[0] = status_text
+	img = images.make_subs(title)
+	_ = twitter.send_tweet(title, img)
+	return True
 
-    _ = twitter.send_tweet(title)
+def search_for_stiutk() -> List:
+	"""
+	Make attempts to crawl for matching titles.
 
-def search_for_stiutk(attempts=MAX_ATTEMPTS, backoff=BACKOFF) -> Tuple[str, int]:
-    """Loop MAX_ATTEMPT times, searching for a STIUTK meter wikipedia title.
+	Parameters:
+	  None.
 
-    Args:
-        Integer: attempts, retries remaining.
-        Integer: backoff, seconds to wait between each loop.
-    Returns:
-        Tuple[str, int] where the first member is the string name
-        of the Wiki article, and the 2nd is which meter it matches;
-        "Somebody That I Used To Know" (1) or
-        "Now You're Just Somebody That I Used To Know" (2)?
-    """
-    for attempt in range(attempts):
-        print(f"\r{str(attempt * 25)} articles fetched...", end="")
-        sys.stdout.flush()
-        title = crawl_for_stiutk()
+	Returns:
+	  Our hell-monstrosity list/tuple, or None on failure.
+	"""
+	matches = [ ]	
+	for attempt in range(MAX_ATTEMPTS):
+		match = crawl_for_stiutk(attempt)
+		time.sleep(BACKOFF)
 
-        time.sleep(backoff)
+		if not match:
+			continue
 
-        if type(title) != None:
-            continue
+		try:
+			if type(match[0]) == str and len(match[0]) > 1:
+				matches.append(match)
+		except TypeError:
+			print(f"TypeError: {str(type(match))}")
+			pass
+		except Exception as e:
+			print(f"Exception: " + str(e) + '\n')
 
-        try:
-            if type(title[0]) == str and len(title[0]) > 1:
-                print(f"\nMatched: {title[0]}")
-                return title
-        except TypeError:
-            pass
-        except Exception as e:
-            print("Exception: " + str(e))
+	if not matches:
+		return None
 
-    print(f"\nNo matches found.")
-    sys.exit(1)
+	return best_match(matches)
 
 
-def crawl_for_stiutk() -> Tuple[str, int]:
-    """Get 10 random wiki titles, check if any of them isSTIUTK().
+def get_wiki_titles() -> List:
+	"""
+	Get a list of random titles from wikipedia. Change number in lib/constants.py
 
-    We grab the max allowed Wikipedia page titles (10) using wikipedia.random().
-    If any title is in STIUTK meter, return the title and which meter is matched.
-    Otherwise, return False.
+	Parameters:
+	  None.
 
-    Args:
-        None
-    Returns:
-        Tuple[str, int] where the first member is the string name
-        of the Wiki article, and the second is which meter it matches;
-        "Somebody That I Used To Know" (1) or
-        "Now You're Just Somebody That I Used To Know" (2)?
-    """
-    wikipedia.set_rate_limiting(True)
+	Returns:
+	  List of titles.
+	"""
+	wikipedia.set_rate_limiting(True)
 
-    try:
-        titles = wikipedia.random(25)
-    except wikipedia.exceptions.HTTPTimeoutError as e:
-        print(f"Wikipedia timout exception: {e}")
-        time.sleep(TIMEOUT_BACKOFF)
-        main()
-    except wikipedia.exceptions.WikipediaException as e:
-        print(f"Wikipedia exception: {e}")
-        sys.exit(1)
-    except Exception as e:
-        print(f"Exception while fetching wiki titles: {e}")
-        sys.exit(1)
+	try:
+		titles = wikipedia.random(FETCH)
+	except wikipedia.exceptions.HTTPTimeoutError as e:
+		print(f"Wikipedia timout exception: {e}")
+		time.sleep(TIMEOUT_BACKOFF)
+		sys.exit(1)
+	except wikipedia.exceptions.WikipediaException as e:
+		print(f"Wikipedia exception: {e}")
+		sys.exit(1)
+	except Exception as e:
+		print(f"Exception while fetching wiki titles: {e}")
+		sys.exit(1)
 
-    for title in titles:
-        stiutk_type = words.is_stiutk(title)
-        if stiutk_type[0]:
-            return (title, stiutk_type[1])
+	return titles
+
+def best_match(matches: List) -> List:
+	"""
+	Run through our monstrisity hell list/tuple, finding which one matches with
+	the longest number of syllables. I did this to myself.
+
+	Paramters:
+	  matches (List): A list of... a list of lists of string/tuple. Hell.
+
+	Returns:
+	  The string/tuple list matching the most syllables.
+	"""
+	i = 0
+	n = 0
+	b = 0
+
+	for match in matches:
+		if match[1][0] > b:
+			b = match[1][0]
+			i = n
+		n += 1
+
+	return matches[i]
+
+def crawl_for_stiutk(total: int) -> List:
+	"""
+	Check every title from get_wiki_titles, then return the best matching.
+
+	Parameters:
+	  total (int): Just for output, how many times have we done this?
+
+	Returns:
+	  Our best matching title in our classic hellish string/tuple list.
+	"""
+	matches = [ ]
+	for title in get_wiki_titles():
+		match = words.is_stiutk(title)
+		if match:
+			print(f"\nAnother match: {match[0]} ({match[1][4]})")
+			matches.append(match)
+
+	if matches:
+		return best_match(matches)
+
+	return None
 
 if __name__ == "__main__":
-    main()
+	main()
