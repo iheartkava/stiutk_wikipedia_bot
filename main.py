@@ -26,7 +26,7 @@ def main():
 		time.sleep(10)
 
 def loop():
-	title = search_for_stiutk(MAX_ATTEMPTS, BACKOFF)
+	title = search_for_stiutk()
 	if not title:
 		print(f"\nNo matches found.")
 		return False
@@ -46,9 +46,9 @@ def search_for_stiutk() -> List:
 	  Our hell-monstrosity list/tuple, or None on failure.
 	"""
 	matches = [ ]	
-	for attempt in range(attempts):
+	for attempt in range(MAX_ATTEMPTS):
 		match = crawl_for_stiutk(attempt)
-		time.sleep(backoff)
+		time.sleep(BACKOFF)
 
 		if not match:
 			continue
